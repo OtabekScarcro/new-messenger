@@ -7,7 +7,8 @@ public class InputHandler implements Runnable{
 
     private Socket socket;
     private BufferedReader in;
-    private final String FRIENDS_LIST = "./lib/friends.csv";
+    private PrintWriter out;
+    private final String FRIENDS_LIST = "./src/application/friends.txt";
     private final int NICKNAMES_ROW = 0;
 
     // we use that variable when
@@ -23,6 +24,7 @@ public class InputHandler implements Runnable{
     public void run() {
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
 
             while(socket.isConnected()){
                 String msgFromServer = in.readLine();
@@ -45,18 +47,14 @@ public class InputHandler implements Runnable{
         try {
             String command = in.readLine();
             if(command.equals("/stopLooping")){
-                if(stopLooping){
-                    stopLooping = false;
-                }
-                else {
-                    stopLooping = true;
-                }
+                stopLooping = false;
             }
-
             else if(command.equals("/addFriend")){
-                try (PrintWriter pw = new PrintWriter(FRIENDS_LIST)){
+                try (FileOutputStream fos = new FileOutputStream(FRIENDS_LIST, true)){
                     String nickname = in.readLine();
-                    //pw.write();
+                    fos.write(nickname.getBytes());
+                    fos.write(System.lineSeparator().getBytes());
+                    System.out.println(nickname + " has been added successfully to your friends list!");
                 } catch (IOException e){
                     // TODO: handle
                 }
@@ -66,9 +64,20 @@ public class InputHandler implements Runnable{
         }
     }
 
-
+    /**
+     * getting stop command to break infinite loop in client app
+     * @return
+     */
     public static boolean getStopCommand(){
         return stopLooping;
+    }
+
+    /**
+     * setting value to stopLooping variable
+     * @param bool
+     */
+    public static void setStopLooping(boolean bool){
+        stopLooping = bool;
     }
 
     /**

@@ -23,6 +23,16 @@ public class MessageHandler {
     }
 
     /**
+     * to remove all white spaces from command,
+     * and to make them into the same case
+     * @param str
+     * @return
+     */
+    public String sanitize(String str){
+        return str.replaceAll("\\s", "").toLowerCase();
+    }
+
+    /**
      * this method check whether the email is valid or not
      * @param email
      * @return
@@ -66,6 +76,9 @@ public class MessageHandler {
             String line;
             while((line = br.readLine()) != null){
                 String[] str = line.split(",");
+                if(str.length != 3){
+                    continue;
+                }
                 if(str[NICKNAME_ROW].equals(nickname)){
                     return true;
                 }
@@ -78,26 +91,4 @@ public class MessageHandler {
         return false;
     }
 
-    /**
-     * getting socket from Server by user's nickname
-     * @param nickname
-     * @return
-     */
-    public Socket getSocket(String nickname){
-        Socket socket = null;
-        String line = "";
-        try (BufferedReader br = new BufferedReader(new FileReader(USERS_LIBRARY_FILE))){
-            while((line = br.readLine()) != null){
-                String[] str = line.split(",",4);
-                if(str[NICKNAME_ROW].equals(nickname)){
-                    //socket = new Socket(str[SOCKET_ROW]);
-                }
-            }
-        } catch (FileNotFoundException e){
-            // ignore
-        } catch (IOException e1){
-            // ignore
-        }
-        return socket;
-    }
 }

@@ -48,6 +48,9 @@ public class Client implements Runnable{
 
     }
 
+    /**
+     * main window in this application
+     */
     private void mainWindow(){
         while(socket.isConnected()){
             clear();
@@ -77,9 +80,13 @@ public class Client implements Runnable{
         }
     }
 
+    /**
+     * main menu in this application
+     */
     private void mainMenu(){
-        String msgInMenu = "";
+        String msgInMenu;
         do {
+            msgInMenu = null;
             clear();
             System.out.println("1. Search for new friends");
             System.out.println("2. Search for new groups");
@@ -119,6 +126,75 @@ public class Client implements Runnable{
     }
 
     /**
+     * search for new friends
+     */
+    private void searchFriend(){
+        out.println("/command");
+        out.println("/searchFriend");
+        String message = "";
+        InputHandler.setStopLooping(true);
+        while(InputHandler.getStopCommand()){
+            message = scanner.nextLine();
+            out.println(message);
+        }
+        message = message.replaceAll("\\s","").toLowerCase();
+        if(message.equals("yes") || message.equals("y")){
+            System.out.println(message);
+            startChat();
+        }
+    }
+
+    /**
+     * start direct chat with one friend
+     */
+    private void startChat(){
+        try {
+            String msg;
+            System.out.println("Chat has been started!");
+            while (!(msg = scanner.nextLine()).equals("/quit")) {
+                out.println(msg);
+            }
+            out.println(msg);
+            System.out.println("You left from this chat!");
+            Thread.sleep(2000);
+        } catch (InterruptedException e1){
+            // TODO: handle
+        }
+    }
+
+    /**
+     * class to print messages in the chat
+     */
+    class OutputInChat implements Runnable{
+        private Socket socket;
+        private BufferedReader in;
+        private String friend;
+        public OutputInChat(Socket socket, String friend){
+            this.friend = friend;
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            clear();
+            String msg;
+            try {
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                String nickname = this.in.readLine();
+                System.out.println("You can start to write to " + nickname);
+                System.out.println("\"/history\" - to see full history in this chat");
+                System.out.println("\"/quit\" - to exit from this chat!");
+                while ((msg = in.readLine()) != "/quit") {
+                    System.out.println(friend + ": " + msg);
+                }
+                System.out.println(nickname + " has left from this chat!");
+            } catch (IOException e){
+                shutdown();
+            }
+        }
+    }
+
+    /**
      * method sends information to server
      * in Accounts step
      */
@@ -126,20 +202,6 @@ public class Client implements Runnable{
         while(InputHandler.getStopCommand()){
             String msg = scanner.nextLine();
             out.println(msg);
-        }
-    }
-
-    /**
-     * search for new friends
-     */
-    private void searchFriend(){
-        System.out.println("Enter a nickname you want to search: ");
-        out.println("/command");
-        out.println("/searchFriend");
-
-        while(!InputHandler.getStopCommand()){
-            String newFriend = scanner.nextLine();
-            out.println(newFriend);
         }
     }
 
@@ -158,8 +220,23 @@ public class Client implements Runnable{
         }
     }
 
+    /**
+     * shutdown everything
+     */
     private void shutdown(){
-
+        try {
+            if(!socket.isClosed()){
+                socket.close();
+            }
+            if(!poll.isShutdown()){
+                poll.shutdown();
+            }
+            in.close();
+            out.close();
+            scanner.close();
+        } catch (IOException e){
+            // ignore
+        }
     }
 
     public static void main(String[] args) {

@@ -45,10 +45,7 @@ public class Server implements Runnable{
                 socket = serverSocket.accept();
                 connectionId = getUniqueId();
 
-                AccountHandler accountHandler = new AccountHandler(socket, connectionId);
-                accountHandler.run();
-
-                ConnectionHandler connectionHandler = new ConnectionHandler(socket);
+                ConnectionHandler connectionHandler = new ConnectionHandler(socket, connectionId);
                 poll.execute(connectionHandler);
 
             } catch (IOException e) {

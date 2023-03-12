@@ -17,9 +17,14 @@ public class AccountHandler implements Runnable{
     private String connectionId;
     private String nickname;
     private String userEmail;
+    private final int EMAILS_ROW = 2;
+    private final int NICKNAME_ROW = 1;
 
     // to stop infinite loop in Client
-    private final String STOP = "/stop";
+    private final String STOP = "/stopLooping";
+
+    // nicknames list
+    private final String NICKNAMES_LIBRARY = "./users_lib/nicknames.txt";
 
     // Users library path
     private final String USERS_LIBRARY_FILE = "./users_lib/users.csv";
@@ -59,18 +64,19 @@ public class AccountHandler implements Runnable{
             // sign in
             if(choose.equals("1")){
                 signIn(userEmail);
-                out.println("A new account has been created successfully!");
+                out.println("Logged in successful!");
+                out.println("Please press enter to go to the main Window!");
+                out.println("/command");
                 out.println(STOP);
             }
             // sign up
             else {
                 signUp(userEmail);
-                out.println("Logged in successful!");
+                out.println("A new account has been created successfully!");
+                out.println("Please press enter to go to the main Window!");
+                out.println("/command");
                 out.println(STOP);
             }
-
-            // add this user to the library
-            addToLibrary();
 
             // add this socket to the usersList
             Server.usersList.put(this.nickname, this.socket);
@@ -93,6 +99,11 @@ public class AccountHandler implements Runnable{
                 email = in.readLine();
                 isValidEmail(email);
             }
+            // confirmation email by sending 6-digit code
+            confirmationEmail(email);
+
+            //get nickname from user's library
+            nickname = setNickname(email);
         } catch (IOException e){
             shutdown();
         }
@@ -123,6 +134,9 @@ public class AccountHandler implements Runnable{
                 out.println("Please choose another one: ");
                 nickname = msgHandler.rmSpaces(in.readLine());
             }
+
+            // add this user to the library
+            addToLibrary();
         } catch (IOException e){
             shutdown();
         }
@@ -215,13 +229,53 @@ public class AccountHandler implements Runnable{
      * like: [connectionID, nickname, email, socket]
      */
     private void addToLibrary(){
-        try(PrintWriter pw = new PrintWriter(USERS_LIBRARY_FILE)){
-            pw.write(connectionId + ",");
-            pw.write(nickname + ",");
-            pw.write(userEmail);
+        try(FileOutputStream fos = new FileOutputStream(USERS_LIBRARY_FILE, true)){
+            fos.write((connectionId + ",").getBytes());
+            fos.write((nickname + ",").getBytes());
+            fos.write((userEmail).getBytes());
+            fos.write(System.lineSeparator().getBytes());
         } catch (FileNotFoundException e){
             e.printStackTrace();
+        } catch (IOException e){
+            e.printStackTrace();
         }
+        try(FileOutputStream fos = new FileOutputStream(NICKNAMES_LIBRARY, true)){
+            fos.write(nickname.getBytes());
+            fos.write(System.lineSeparator().getBytes());
+        } catch (FileNotFoundException e){
+            e.printStackTrace();
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * getting this user's nickname
+     * @return
+     */
+    public String getNickname(){
+        return this.nickname;
+    }
+
+    /**
+     * getting nickname when user signed in
+     * to the account
+     * @param email
+     * @return
+     */
+    private String setNickname(String email){
+        String line;
+        try(BufferedReader br = new BufferedReader(new FileReader(USERS_LIBRARY_FILE))){
+            while((line = br.readLine()) != null){
+                String[] str = line.split(",");
+                if(str[EMAILS_ROW].equals(email)){
+                    return str[NICKNAME_ROW];
+                }
+            }
+        } catch (IOException e){
+            // TODO: handle
+        }
+        return "";
     }
 
     /**
