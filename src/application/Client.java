@@ -5,11 +5,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Client implements Runnable{
+    public static String userNickname;
+    static Map<String, Integer> notificationMessages = new HashMap<>();
     private Socket socket;
     private ExecutorService poll;
     private BufferedReader in;
@@ -22,6 +24,7 @@ public class Client implements Runnable{
             socket = new Socket("127.0.0.1", SERVER_PORT);
             poll = Executors.newCachedThreadPool();
         } catch (IOException e){
+            e.printStackTrace();
             shutdown();
         }
     }
@@ -32,7 +35,8 @@ public class Client implements Runnable{
             out = new PrintWriter(socket.getOutputStream(), true);
             scanner = new Scanner(System.in);
 
-            Thread thread = new Thread(new InputHandler(socket));
+            InputHandler inputHandler = new InputHandler(socket);
+            Thread thread = new Thread(inputHandler);
             thread.start();
 
             // create an account (or)
@@ -43,6 +47,7 @@ public class Client implements Runnable{
             // main window inside the application
             mainWindow();
         } catch (IOException e){
+            e.printStackTrace();
             shutdown();
         }
 
@@ -54,14 +59,17 @@ public class Client implements Runnable{
     private void mainWindow(){
         while(socket.isConnected()){
             clear();
-            //notifications();
+            notifications();
             System.out.println("1. Show main menu");
             System.out.println("2. Write to friend");
             System.out.println("3. Write to group");
             System.out.println("4. Show notifications");
 
             String msgMainWindow = scanner.nextLine();
-            if(msgMainWindow.equals("1")){
+            if(msgMainWindow == null){
+                continue;
+            }
+            else if(msgMainWindow.equals("1")){
                 clear();
                 mainMenu();
             }
@@ -75,7 +83,75 @@ public class Client implements Runnable{
             }
             else if(msgMainWindow.equals("4")){
                 clear();
-                //showNotifications();
+                showNotifications();
+            }
+        }
+    }
+
+    /**
+     * printing number of new notifications
+     */
+    private void notifications(){
+        int length = notificationMessages.keySet().size();
+        if(length != 0){
+            System.out.println("You have " + length + " new notifications");
+        }
+    }
+
+    /**
+     * showing all new notifications to user
+     */
+    private void showNotifications(){
+        ArrayList<String> list = new ArrayList<>(notificationMessages.keySet());
+        int length = list.size();
+        if(length == 0){
+            System.out.println("You don't have any notifications yet!");
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e){
+                e.printStackTrace();
+            }
+        }
+        else {
+            for(int i=1;i<=length;i++){
+                System.out.println(i + ": " + list.get(i-1));
+            }
+            System.out.println("Please choose the number (0 to go back): ");
+            System.out.println("\"/clear\" to remove all the notifications");
+            String msgInNotification = scanner.nextLine();
+            if(!msgInNotification.equals("/clear")) {
+                int option = Integer.parseInt(msgInNotification);
+                while (option < 0 || option > length) {
+                    System.out.println("Please select the right number!");
+                    msgInNotification = scanner.nextLine();
+                    if(!msgInNotification.equals("/clear")){
+                        option = scanner.nextInt();
+                    }
+                    else {
+                        option = 0;
+                        break;
+                    }
+
+                }
+                if (option != 0) {
+                    String[] str = list.get(option - 1).split(" ");
+                    String name = str[0];
+
+                    // getting port number from notifications
+                    int portNumber = notificationMessages.get(list.get(option - 1));
+
+                    DirectChat directChat = new DirectChat(portNumber);
+                    directChat.run();
+
+                    // removing this notification
+                    notificationMessages.remove(list.get(option - 1));
+                }
+            }
+
+            // removing all notifications
+            if(msgInNotification.equals("/clear")){
+                Set<String> set = notificationMessages.keySet();
+                set.forEach(e -> notificationMessages.remove(e));
             }
         }
     }
@@ -97,29 +173,26 @@ public class Client implements Runnable{
             System.out.println("0. Back to the main window");
             try {
                 msgInMenu = scanner.nextLine();
-                if(msgInMenu.equals("1")){
-                    clear();
-                    searchFriend();
-                }
-                else if(msgInMenu.equals("2")){
+                if(msgInMenu != null) {
+                    if (msgInMenu.equals("1")) {
+                        clear();
+                        searchFriend();
+                    } else if (msgInMenu.equals("2")) {
 
-                }
-                else if(msgInMenu.equals("3")){
+                    } else if (msgInMenu.equals("3")) {
 
-                }
-                else if(msgInMenu.equals("4")){
+                    } else if (msgInMenu.equals("4")) {
 
-                }
-                else if(msgInMenu.equals("5")){
+                    } else if (msgInMenu.equals("5")) {
 
-                }
-                else if(msgInMenu.equals("6")){
+                    } else if (msgInMenu.equals("6")) {
 
-                }
-                else if(!msgInMenu.equals("0")){
-                    System.out.println("Please select 0 to 6 from the above menu");
+                    } else if (!msgInMenu.equals("0")) {
+                        System.out.println("Please select 0 to 6 from the above menu");
+                    }
                 }
             } catch (Exception e){
+                e.printStackTrace();
                 shutdown();
             }
         } while (!msgInMenu.equals("0"));
@@ -139,58 +212,16 @@ public class Client implements Runnable{
         }
         message = message.replaceAll("\\s","").toLowerCase();
         if(message.equals("yes") || message.equals("y")){
-            System.out.println(message);
-            startChat();
-        }
-    }
 
-    /**
-     * start direct chat with one friend
-     */
-    private void startChat(){
-        try {
-            String msg;
-            System.out.println("Chat has been started!");
-            while (!(msg = scanner.nextLine()).equals("/quit")) {
-                out.println(msg);
-            }
-            out.println(msg);
-            System.out.println("You left from this chat!");
-            Thread.sleep(2000);
-        } catch (InterruptedException e1){
-            // TODO: handle
-        }
-    }
-
-    /**
-     * class to print messages in the chat
-     */
-    class OutputInChat implements Runnable{
-        private Socket socket;
-        private BufferedReader in;
-        private String friend;
-        public OutputInChat(Socket socket, String friend){
-            this.friend = friend;
-            this.socket = socket;
-        }
-
-        @Override
-        public void run() {
-            clear();
-            String msg;
+            // start chat
+            // getting port number from server
             try {
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String nickname = this.in.readLine();
-                System.out.println("You can start to write to " + nickname);
-                System.out.println("\"/history\" - to see full history in this chat");
-                System.out.println("\"/quit\" - to exit from this chat!");
-                while ((msg = in.readLine()) != "/quit") {
-                    System.out.println(friend + ": " + msg);
-                }
-                System.out.println(nickname + " has left from this chat!");
-            } catch (IOException e){
-                shutdown();
+                Thread.sleep(1000);
+            }catch (InterruptedException e){
+                // ignore
             }
+            DirectChat directChat = new DirectChat(InputHandler.NEW_PORT);
+            directChat.run();
         }
     }
 
@@ -208,7 +239,7 @@ public class Client implements Runnable{
     /**
      * clearing the client screen
      */
-    private void clear(){
+    public static void clear(){
         try {
             new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
             System.out.print("\033[H\033[2J");
@@ -224,19 +255,19 @@ public class Client implements Runnable{
      * shutdown everything
      */
     private void shutdown(){
-        try {
-            if(!socket.isClosed()){
-                socket.close();
-            }
-            if(!poll.isShutdown()){
-                poll.shutdown();
-            }
-            in.close();
-            out.close();
-            scanner.close();
-        } catch (IOException e){
-            // ignore
-        }
+//        try {
+//            if(!socket.isClosed()){
+//                socket.close();
+//            }
+//            if(!poll.isShutdown()){
+//                poll.shutdown();
+//            }
+//            in.close();
+//            out.close();
+//            scanner.close();
+//        } catch (IOException e){
+//            // ignore
+//        }
     }
 
     public static void main(String[] args) {

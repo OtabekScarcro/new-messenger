@@ -78,6 +78,11 @@ public class AccountHandler implements Runnable{
                 out.println(STOP);
             }
 
+            // send to client his/her nickname
+            out.println("/command");
+            out.println("/setNickname");
+            out.println(nickname);
+
             // add this socket to the usersList
             Server.usersList.put(this.nickname, this.socket);
 

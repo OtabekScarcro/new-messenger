@@ -1,5 +1,7 @@
 package application;
 
+import server.Server;
+
 import java.io.*;
 import java.net.Socket;
 
@@ -10,6 +12,7 @@ public class InputHandler implements Runnable{
     private PrintWriter out;
     private final String FRIENDS_LIST = "./src/application/friends.txt";
     private final int NICKNAMES_ROW = 0;
+    static int NEW_PORT;
 
     // we use that variable when
     // we came to accounts step
@@ -30,12 +33,14 @@ public class InputHandler implements Runnable{
                 String msgFromServer = in.readLine();
 
                 // if it is "/command" call commands()
-                if(msgFromServer.equals("/command")){
-                    commands();
-                }
-                // otherwise print to console
-                else {
-                    System.out.println(msgFromServer);
+                if(msgFromServer != null) {
+                    if (msgFromServer.equals("/command")) {
+                        commands();
+                    }
+                    // otherwise print to console
+                    else {
+                        System.out.println(msgFromServer);
+                    }
                 }
             }
         } catch (IOException e){
@@ -58,6 +63,22 @@ public class InputHandler implements Runnable{
                 } catch (IOException e){
                     // TODO: handle
                 }
+            }
+            else if(command.equals("/startedChat")){
+                try {
+                    String whoStarted = in.readLine();
+                    String portNumber = in.readLine();
+                    Client.notificationMessages.put(whoStarted, Integer.parseInt(portNumber));
+                }catch (IOException e){
+                    // TODO: handle
+                }
+            }
+            else if(command.equals("/setNickname")){
+                Client.userNickname = in.readLine();
+            }
+            else if(command.equals("/setNewPort")){
+                String str = in.readLine();
+                NEW_PORT = Integer.parseInt(str);
             }
         } catch (IOException e){
             shutdown();

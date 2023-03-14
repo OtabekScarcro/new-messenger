@@ -1,13 +1,13 @@
 package server;
 
 import java.io.*;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class ConnectionHandler implements Runnable{
 
-    private final String NICKNAMES_LIBRARY = "./users_lib/nicknames.txt";
-    private final String CHAT_HISTORY_DIR = "./users_lib/";
 
     // to stop infinite loop in Client
     private final String STOP = "/stopLooping";
@@ -17,7 +17,7 @@ public class ConnectionHandler implements Runnable{
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
-    private String connectionId;
+    private final String connectionId;
 
     public ConnectionHandler(Socket socket, String connectionId){
         this.socket = socket;
@@ -36,6 +36,12 @@ public class ConnectionHandler implements Runnable{
             while(true){
                 String msgFromClient = in.readLine();
                 if(msgFromClient.equals("/command")){
+
+
+                    // chat changing something
+                    // server doesn't get message after chatting
+
+
                     commands();
                 }
             }
@@ -57,7 +63,6 @@ public class ConnectionHandler implements Runnable{
 
     /**
      * searching compatible nicknames and collect them
-     * @return
      */
     private void searchForNickname(){
         ArrayList<String> matchFriends = new ArrayList<>();
@@ -95,11 +100,12 @@ public class ConnectionHandler implements Runnable{
 
     /**
      * collect matches with a given nickname
-     * @param nickname
-     * @param matchFriends
-     * @return
+     * @param nickname user's nickname
+     * @param matchFriends collection from match friends
+     * @return return collection matches
      */
     private ArrayList<String> collectMatches(String nickname, ArrayList<String> matchFriends){
+        final String NICKNAMES_LIBRARY = "./users_lib/nicknames.txt";
         try (BufferedReader br = new BufferedReader(new FileReader(NICKNAMES_LIBRARY))) {
             // search that nickname from Server
             String line;
@@ -116,7 +122,7 @@ public class ConnectionHandler implements Runnable{
 
     /**
      * selecting one friend from the collection
-     * @param list
+     * @param list getting matched friends list
      */
     private void selectNewFriend(ArrayList<String> list){
         // printing matched friends
@@ -158,73 +164,33 @@ public class ConnectionHandler implements Runnable{
                 out.println("Do you want to start chat with that user (y/n): ");
                 String isChatStarted = msgHandler.sanitize(in.readLine());
                 if(isChatStarted.equals("yes") || isChatStarted.equals("y")){
-                    // call saveChat() method to save messages
-                    saveChat(accountHandler.getNickname(), friend);
-                }
-                else {
-                    // Back to the main menu
+
+                    final int newPort = generatePort();
+                    DirectChat directChat = new DirectChat(friend, this.accountHandler.getNickname(), newPort);
+                    out.println("/command");
+                    out.println("/setNewPort");
+                    out.println(newPort);
+                    directChat.run();
                 }
             }
         } catch (IOException e) {
-            //TODO: handle
+            shutdown();
         }
     }
 
     /**
-     * saving messages from current user
-     * @param me
-     * @param friend
+     * generating new random port number
+     * when 2 users start chat directly
+     * @return return random port
      */
-    private void saveChat(String me, String friend){
-        // generate unique file name
-        int uuidNum = 0;
-        for(byte b : me.getBytes()){
-            uuidNum += b;
+    private int generatePort(){
+        final int portLength = 4;
+        Random random = new Random();
+        String str = "";
+        for(int i=0;i<portLength;i++){
+            str += ((Integer)random.nextInt(10)).toString();
         }
-        for(byte b : friend.getBytes()){
-            uuidNum += b;
-        }
-        final String FILE_NAME = (uuidNum) + ".txt";
-
-        try (FileOutputStream fos = new FileOutputStream(CHAT_HISTORY_DIR+FILE_NAME, true)){
-            String message = in.readLine();
-            while (!message.equals("/quit")){
-                fos.write((me + ": " + message).getBytes());
-                fos.write(System.lineSeparator().getBytes());
-                message = in.readLine();
-            }
-        } catch (IOException e){
-            // TODO: handle
-        }
-    }
-
-    /**
-     * class to save messages from friend
-     */
-    class SaveFromFriend implements Runnable{
-        private Socket socket;
-        private String friend;
-        private final String PATH;
-        public SaveFromFriend(String friend, String PATH){
-            this.socket = Server.usersList.get(friend);
-            this.friend = friend;
-            this.PATH = PATH;
-        }
-
-        @Override
-        public void run() {
-            String msg;
-            try (FileOutputStream fos = new FileOutputStream(PATH, true);
-                 BufferedReader inFromFriend = new BufferedReader(new InputStreamReader(socket.getInputStream())))
-            {
-                while(!(msg = inFromFriend.readLine()).equals("/quit")){
-                    fos.write((friend + ": " + msg).getBytes());
-                    fos.write(System.lineSeparator().getBytes());
-                }
-            } catch (IOException e){
-                // TODO: handle
-            }
-        }
+        return Integer.parseInt(str);
     }
 
     /**
